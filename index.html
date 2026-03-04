@@ -294,9 +294,9 @@
 <script>
   // ── CONFIG ──
   const GROQ_KEY = "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";
-  const GEMINI_KEY = "AIzaSyCzzT5NWfWeD8HkMUWSzoHfD2wV-Wdhm34";
+  const CLAUDE_KEY = "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";
   const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${GEMINI_KEY}`;
+  const CLAUDE_URL = "https://api.anthropic.com/v1/messages";
 
   const SYSTEM_12 = `Kamu adalah Ano, asisten AI yang ramah dan helpful. Jawab dalam bahasa yang sama dengan pengguna. Jika ditanya siapa kamu, jawab kamu adalah Ano versi 1.2.`;
   const SYSTEM_20 = `Kamu adalah Ano versi 2.0, AI generasi terbaru yang sangat cerdas dan up-to-date. Kamu bisa melihat gambar. Jawab dalam bahasa yang sama dengan pengguna. Berikan jawaban yang mendalam dan akurat.`;
@@ -497,39 +497,44 @@
   }
 
   async function callGemini(text, imgData) {
-    // Build contents from history
-    const contents = [];
-
-    // Add previous history
-    for (const m of history.slice(0, -1)) {
-      const role = m.role === 'assistant' ? 'model' : 'user';
-      const parts = [];
-      if (m.image) parts.push({ inline_data: { mime_type: 'image/jpeg', data: m.image.split(',')[1] }});
-      parts.push({ text: m.content || ' ' });
-      contents.push({ role, parts });
-    }
+    // Build messages for Claude API
+    const msgs = history.slice(0, -1).map(m => {
+      if (m.image) {
+        return {
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: m.image.split(',')[1] }},
+            { type: 'text', text: m.content || ' ' }
+          ]
+        };
+      }
+      return { role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content };
+    });
 
     // Add current message
-    const currentParts = [];
-    if (imgData) currentParts.push({ inline_data: { mime_type: imgData.mimeType, data: imgData.base64.split(',')[1] }});
-    currentParts.push({ text: text || 'Jelaskan gambar ini' });
-    contents.push({ role: 'user', parts: currentParts });
+    const currentContent = [];
+    if (imgData) currentContent.push({ type: 'image', source: { type: 'base64', media_type: imgData.mimeType, data: imgData.base64.split(',')[1] }});
+    currentContent.push({ type: 'text', text: text || 'Jelaskan gambar ini' });
+    msgs.push({ role: 'user', content: currentContent });
 
-    // Inject system as first user message for v1
-    const fullContents = [
-      { role: 'user', parts: [{ text: SYSTEM_20 }] },
-      { role: 'model', parts: [{ text: 'Baik, saya siap membantu!' }] },
-      ...contents
-    ];
-
-    const res = await fetch(GEMINI_URL, {
+    const res = await fetch(CLAUDE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: fullContents })
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLAUDE_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-allow-browser': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM_20,
+        messages: msgs,
+      })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Maaf, tidak bisa menjawab.';
+    return data.content?.[0]?.text || 'Maaf, tidak bisa menjawab.';
   }
 
   // Init
