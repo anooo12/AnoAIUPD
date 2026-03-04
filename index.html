@@ -497,24 +497,34 @@
   }
 
   async function callGemini(text, imgData) {
-    const parts = [];
-    if (imgData) {
-      parts.push({ inline_data: { mime_type: imgData.mimeType, data: imgData.base64.split(',')[1] }});
-    }
-    parts.push({ text });
-
-    // Build conversation history for Gemini
+    // Build contents from history
     const contents = [];
-    // Add system as first user message
-    contents.push({ role:'user', parts:[{text: SYSTEM_20 + '\n\nUser: ' + text}] });
 
-    // If only one message, just send directly
+    // Add previous history
+    for (const m of history.slice(0, -1)) {
+      const role = m.role === 'assistant' ? 'model' : 'user';
+      const parts = [];
+      if (m.image) parts.push({ inline_data: { mime_type: 'image/jpeg', data: m.image.split(',')[1] }});
+      parts.push({ text: m.content || ' ' });
+      contents.push({ role, parts });
+    }
+
+    // Add current message
+    const currentParts = [];
+    if (imgData) currentParts.push({ inline_data: { mime_type: imgData.mimeType, data: imgData.base64.split(',')[1] }});
+    currentParts.push({ text: text || 'Jelaskan gambar ini' });
+    contents.push({ role: 'user', parts: currentParts });
+
     const res = await fetch(GEMINI_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ contents:[{ role:'user', parts }] })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM_20 }] },
+        contents
+      })
     });
     const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
     return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Maaf, tidak bisa menjawab.';
   }
 
