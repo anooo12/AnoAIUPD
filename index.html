@@ -515,13 +515,17 @@
     currentParts.push({ text: text || 'Jelaskan gambar ini' });
     contents.push({ role: 'user', parts: currentParts });
 
+    // Inject system as first user message for v1
+    const fullContents = [
+      { role: 'user', parts: [{ text: SYSTEM_20 }] },
+      { role: 'model', parts: [{ text: 'Baik, saya siap membantu!' }] },
+      ...contents
+    ];
+
     const res = await fetch(GEMINI_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYSTEM_20 }] },
-        contents
-      })
+      body: JSON.stringify({ contents: fullContents })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
