@@ -223,6 +223,17 @@
       color:#fff; font-size:0.85rem; font-family:inherit; cursor:pointer;
     }
 
+    /* Typewriter effect */
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .cursor {
+      display: inline-block;
+      width: 2px; height: 1em;
+      background: var(--purple-light);
+      margin-left: 2px;
+      animation: blink 0.7s infinite;
+      vertical-align: text-bottom;
+    }
+
     /* fade in */
     @keyframes fadeUp {
       from{opacity:0;transform:translateY(8px)}
@@ -449,6 +460,26 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
+  async function typeWriter(el, text, speed=12) {
+    el.innerHTML = '';
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    el.appendChild(cursor);
+    
+    for (let i = 0; i < text.length; i++) {
+      const span = document.createElement('span');
+      // Handle newlines
+      if (text[i] === '\n') {
+        el.insertBefore(document.createElement('br'), cursor);
+      } else {
+        span.textContent = text[i];
+        el.insertBefore(span, cursor);
+      }
+      await new Promise(r => setTimeout(r, speed));
+    }
+    cursor.remove();
+  }
+
   async function sendMessage() {
     const text = textarea.value.trim();
     if ((!text && !pendingImage) || loading) return;
@@ -478,7 +509,11 @@
       history.push({ role:'assistant', content: reply });
 
       const t = document.getElementById('thinking-msg');
-      if (t) { t.querySelector('.bubble').innerHTML = esc(reply); t.removeAttribute('id'); }
+      if (t) {
+        const bubble = t.querySelector('.bubble');
+        t.removeAttribute('id');
+        await typeWriter(bubble, reply, 10);
+      }
     } catch(err) {
       const t = document.getElementById('thinking-msg');
       if (t) { t.querySelector('.bubble').innerHTML = '⚠️ Error: ' + err.message; t.removeAttribute('id'); }
