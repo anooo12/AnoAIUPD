@@ -370,7 +370,8 @@ async function sendMessage() {
 async function callGroq(text, sysPrompt, maxTok) {
   var msgs = [{role:'system', content: sysPrompt}];
   for (var i=0; i<history.length-1; i++) {
-    msgs.push({role: history[i].role==='assistant'?'assistant':'user', content: history[i].content || ' '});
+    var h = history[i];
+    msgs.push({role: h.role==='assistant'?'assistant':'user', content: h.content || ' '});
   }
   msgs.push({role:'user', content: text});
 
@@ -379,9 +380,13 @@ async function callGroq(text, sysPrompt, maxTok) {
     headers: {'Content-Type':'application/json','Authorization':'Bearer ' + GROQ_KEY},
     body: JSON.stringify({model:'llama-3.3-70b-versatile', max_tokens: maxTok || 1000, messages: msgs})
   });
+  
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   var data = await res.json();
   if (data.error) throw new Error(data.error.message);
-  return data.choices[0].message.content;
+  var reply = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!reply) throw new Error('Respon kosong dari API');
+  return reply;
 }
 
 async function callAstro20(text) {
