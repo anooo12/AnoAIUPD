@@ -223,6 +223,24 @@
       color:#fff; font-size:0.85rem; font-family:inherit; cursor:pointer;
     }
 
+    /* Mode buttons */
+    .mode-bar {
+      display: flex; gap: 6px; padding: 6px 16px 0;
+      flex-shrink: 0;
+    }
+    .mode-btn {
+      padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border);
+      font-size: 0.72rem; cursor: pointer; font-family: inherit;
+      background: rgba(255,255,255,0.05); color: var(--muted);
+      display: flex; align-items: center; gap: 5px;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: linear-gradient(135deg, var(--purple), var(--purple-light));
+      color: #fff; border-color: transparent;
+    }
+    .mode-btn:active { transform: scale(0.95); }
+
     /* Typewriter effect */
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
     .cursor {
@@ -270,6 +288,12 @@
   <!-- MESSAGES -->
   <div id="scroll-wrap">
     <div id="messages"></div>
+  </div>
+
+  <!-- MODE BAR -->
+  <div class="mode-bar" id="mode-bar" style="display:none">
+    <button class="mode-btn" id="btn-think" onclick="toggleMode('think')">🧠 Berpikir</button>
+    <button class="mode-btn" id="btn-research" onclick="toggleMode('research')">🔍 Deep Research</button>
   </div>
 
   <!-- INPUT -->
@@ -339,13 +363,28 @@
     return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
   }
 
+  let currentMode = 'normal';
+
+  function toggleMode(mode) {
+    if (currentMode === mode) {
+      currentMode = 'normal';
+      document.getElementById('btn-think').classList.remove('active');
+      document.getElementById('btn-research').classList.remove('active');
+    } else {
+      currentMode = mode;
+      document.getElementById('btn-think').classList.toggle('active', mode==='think');
+      document.getElementById('btn-research').classList.toggle('active', mode==='research');
+    }
+  }
+
   function switchModel(m) {
     currentModel = m;
     document.getElementById('btn-12').classList.toggle('active', m==='12');
     document.getElementById('btn-20').classList.toggle('active', m==='20');
     document.getElementById('model-name').textContent = m==='12' ? 'Astro 1.2' : 'Astro 2.0';
     document.getElementById('model-sub').textContent = m==='12' ? 'powered by Ano · LLaMA' : 'powered by Ano · LLaMA Pro';
-    // Update avatar color for future messages
+    document.getElementById('mode-bar').style.display = m==='20' ? 'flex' : 'none';
+    if (m==='12') { currentMode='normal'; document.getElementById('btn-think').classList.remove('active'); document.getElementById('btn-research').classList.remove('active'); }
   }
 
   function newChat() {
@@ -539,26 +578,70 @@
   }
 
   async function callGemini(text, imgData) {
-    // Astro 2.0 uses Groq with advanced model and Claude-like personality
+    let systemPrompt = SYSTEM_20;
+    let maxTokens = 2048;
+    let userText = text || 'Halo';
+
+    if (currentMode === 'think') {
+      systemPrompt = SYSTEM_20 + `\n\nMODE: BERPIKIR MENDALAM
+Sebelum menjawab, tulis proses berpikirmu dalam blok <think>...</think>.
+Format jawaban:
+<think>
+[Analisis mendalam, pertimbangkan berbagai sudut pandang, pikirkan step by step]
+</think>
+
+[Jawaban final yang terstruktur dan mendalam]`;
+      maxTokens = 4000;
+    } else if (currentMode === 'research') {
+      systemPrompt = SYSTEM_20 + `\n\nMODE: DEEP RESEARCH
+Lakukan riset mendalam dengan format:
+📋 **Ringkasan**
+[Ringkasan singkat]
+
+🔍 **Analisis Mendalam**
+[Bahas dari berbagai aspek dan sudut pandang]
+
+📊 **Data & Fakta**
+[Fakta-fakta penting yang relevan]
+
+⚖️ **Pro & Kontra** (jika relevan)
+[Pertimbangan berbagai sisi]
+
+💡 **Kesimpulan**
+[Kesimpulan dan rekomendasi]`;
+      maxTokens = 6000;
+      userText = `Lakukan riset mendalam tentang: ${text}`;
+    }
+
     const res = await fetch(GROQ_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY},
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 2048,
+        max_tokens: maxTokens,
         messages: [
-          {role: 'system', content: SYSTEM_20},
+          {role: 'system', content: systemPrompt},
           ...history.slice(0, -1).map(m => ({
             role: m.role === 'assistant' ? 'assistant' : 'user',
             content: m.content
           })),
-          {role: 'user', content: text || 'Halo'}
+          {role: 'user', content: userText}
         ]
       })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    return data.choices?.[0]?.message?.content || 'Maaf, tidak bisa menjawab.';
+    
+    let reply = data.choices?.[0]?.message?.content || 'Maaf, tidak bisa menjawab.';
+    
+    // Format think blocks
+    if (currentMode === 'think') {
+      reply = reply.replace(/<think>([\s\S]*?)<\/think>/g, (_, thinking) => {
+        return \`💭 *Proses berpikir:*\n\${thinking.trim()}\n\n---\n\n\`;
+      });
+    }
+    
+    return reply;
   }
 
   // Init
