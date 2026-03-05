@@ -1,23 +1,13 @@
-const CACHE = 'astro-v10';
-
-self.addEventListener('install', e => {
+self.addEventListener('install', function(e) {
   self.skipWaiting();
 });
-
-self.addEventListener('activate', e => {
+self.addEventListener('activate', function(e) {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.map(k => caches.delete(k)))
-    )
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+    }).then(function() { return self.clients.claim(); })
   );
-  self.clients.claim();
 });
-
-self.addEventListener('fetch', e => {
-  // Never cache index.html
-  if (e.request.url.includes('index.html') || e.request.url.endsWith('/')) {
-    e.respondWith(fetch(e.request));
-    return;
-  }
+self.addEventListener('fetch', function(e) {
   e.respondWith(fetch(e.request));
 });
