@@ -353,8 +353,13 @@ async function sendMessage() {
     }
   } catch(err) {
     var t2 = document.getElementById('thinking-msg');
-    if (t2) { t2.querySelector('.bubble').innerHTML = '⚠️ ' + esc(err.message); t2.removeAttribute('id'); }
-    history.pop();
+    if (t2) {
+      t2.removeAttribute('id');
+      var b = t2.querySelector('.bubble');
+      b.className = 'bubble bot';
+      b.innerHTML = '⚠️ Error: ' + esc(String(err.message || err));
+    }
+    if (history.length > 0 && history[history.length-1].role === 'user') history.pop();
   } finally {
     loading = false;
     sendBtn.disabled = false;
