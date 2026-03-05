@@ -636,8 +636,8 @@ Lakukan riset mendalam dengan format:
     
     // Format think blocks
     if (currentMode === 'think') {
-      reply = reply.replace(/<think>([\s\S]*?)<\/think>/g, (_, thinking) => {
-        return \`💭 *Proses berpikir:*\n\${thinking.trim()}\n\n---\n\n\`;
+      reply = reply.replace(/<think>([\s\S]*?)<\/think>/g, function(_, thinking) {
+        return '💭 Proses berpikir:\n' + thinking.trim() + '\n\n---\n\n';
       });
     }
     
