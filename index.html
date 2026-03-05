@@ -294,12 +294,19 @@
 <script>
   // ── CONFIG ──
   const GROQ_KEY = "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";
-  const CLAUDE_KEY = "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";
+  
   const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-  const CLAUDE_URL = "https://happy-mole-13.anooo12.deno.net/";
+  
 
   const SYSTEM_12 = `Kamu adalah Ano, asisten AI yang ramah dan helpful. Jawab dalam bahasa yang sama dengan pengguna. Jika ditanya siapa kamu, jawab kamu adalah Ano versi 1.2.`;
-  const SYSTEM_20 = `Kamu adalah Ano versi 2.0, AI generasi terbaru yang sangat cerdas dan up-to-date. Kamu bisa melihat gambar. Jawab dalam bahasa yang sama dengan pengguna. Berikan jawaban yang mendalam dan akurat.`;
+  const SYSTEM_20 = `Kamu adalah Ano 2.0, asisten AI yang sangat cerdas, thoughtful, dan helpful. Karaktermu:
+- Jawab dengan mendalam, terstruktur, dan akurat
+- Gunakan analogi dan contoh konkret untuk menjelaskan hal kompleks
+- Jujur jika tidak tahu sesuatu
+- Berpikir step-by-step untuk masalah yang rumit
+- Ramah tapi profesional
+- Jawab dalam bahasa yang sama dengan pengguna
+- Jika ditanya siapa kamu, jawab kamu adalah Ano 2.0, AI asisten canggih`;
 
   let currentModel = '12';
   let history = [];
@@ -326,7 +333,7 @@
     document.getElementById('btn-12').classList.toggle('active', m==='12');
     document.getElementById('btn-20').classList.toggle('active', m==='20');
     document.getElementById('model-name').textContent = m==='12' ? 'Astro 1.2' : 'Astro 2.0';
-    document.getElementById('model-sub').textContent = m==='12' ? 'powered by Ano · LLaMA' : 'powered by Ano · Gemini';
+    document.getElementById('model-sub').textContent = m==='12' ? 'powered by Ano · LLaMA' : 'powered by Ano · LLaMA Pro';
     // Update avatar color for future messages
   }
 
@@ -497,44 +504,26 @@
   }
 
   async function callGemini(text, imgData) {
-    // Build messages for Claude API
-    const msgs = history.slice(0, -1).map(m => {
-      if (m.image) {
-        return {
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: m.image.split(',')[1] }},
-            { type: 'text', text: m.content || ' ' }
-          ]
-        };
-      }
-      return { role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content };
-    });
-
-    // Add current message
-    const currentContent = [];
-    if (imgData) currentContent.push({ type: 'image', source: { type: 'base64', media_type: imgData.mimeType, data: imgData.base64.split(',')[1] }});
-    currentContent.push({ type: 'text', text: text || 'Jelaskan gambar ini' });
-    msgs.push({ role: 'user', content: currentContent });
-
-    const res = await fetch(CLAUDE_URL, {
+    // Astro 2.0 uses Groq with advanced model and Claude-like personality
+    const res = await fetch(GROQ_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-allow-browser': 'true',
-      },
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY},
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: SYSTEM_20,
-        messages: msgs,
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 2048,
+        messages: [
+          {role: 'system', content: SYSTEM_20},
+          ...history.slice(0, -1).map(m => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.content
+          })),
+          {role: 'user', content: text || 'Halo'}
+        ]
       })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    return data.content?.[0]?.text || 'Maaf, tidak bisa menjawab.';
+    return data.choices?.[0]?.message?.content || 'Maaf, tidak bisa menjawab.';
   }
 
   // Init
