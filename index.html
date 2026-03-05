@@ -345,8 +345,10 @@ async function sendMessage() {
     history.push({role:'assistant', content: reply});
     var t = document.getElementById('thinking-msg');
     if (t) {
-      var bubble = t.querySelector('.bubble');
       t.removeAttribute('id');
+      var bubble = t.querySelector('.bubble');
+      bubble.className = 'bubble bot';
+      bubble.innerHTML = '';
       await typeWriter(bubble, reply, 10);
     }
   } catch(err) {
