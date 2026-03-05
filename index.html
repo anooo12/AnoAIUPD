@@ -347,7 +347,7 @@
   let history = [];
   let loading = false;
   let pendingImage = null; // {base64, mimeType}
-  let allChats = JSON.parse(localStorage.getItem('astro_chats') || '[]');
+  let allChats = (() => { try { return JSON.parse(localStorage.getItem('astro_chats') || '[]'); } catch(e) { return []; } })();
   let currentChatId = Date.now();
 
   const scrollWrap = document.getElementById('scroll-wrap');
@@ -396,7 +396,7 @@
       const chatData = { id: currentChatId, title, model: currentModel, history, time: Date.now() };
       if (existing >= 0) allChats[existing] = chatData;
       else allChats.unshift(chatData);
-      localStorage.setItem('astro_chats', JSON.stringify(allChats.slice(0,30)));
+      try { localStorage.setItem('astro_chats', JSON.stringify(allChats.slice(0,30))); } catch(e) {}
     }
     history = [];
     currentChatId = Date.now();
