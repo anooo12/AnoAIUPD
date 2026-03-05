@@ -9,11 +9,7 @@
   <link rel="manifest" href="manifest.json"/>
   <title>Astro</title>
   <style>
-    :root {
-      --bg1:#0f0c29;--bg2:#302b63;--bg3:#24243e;
-      --purple:#7c3aed;--purple-light:#a78bfa;
-      --text:#e2d9f3;--muted:#9f7aea;--border:rgba(167,139,250,0.2);
-    }
+    :root{--bg1:#0f0c29;--bg2:#302b63;--bg3:#24243e;--purple:#7c3aed;--purple-light:#a78bfa;--text:#e2d9f3;--muted:#9f7aea;--border:rgba(167,139,250,0.2)}
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{width:100%;height:100%;overflow:hidden}
     body{background:linear-gradient(135deg,var(--bg1),var(--bg2),var(--bg3));font-family:Georgia,serif;color:var(--text)}
@@ -29,9 +25,6 @@
     .header-actions{display:flex;gap:6px}
     .icon-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.07);color:var(--muted);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
     .icon-btn:active{transform:scale(0.9)}
-    .mode-bar{display:none;gap:6px;padding:8px 16px 4px;flex-shrink:0}
-    .mode-btn{padding:5px 12px;border-radius:20px;border:1px solid var(--border);font-size:0.72rem;cursor:pointer;font-family:inherit;background:rgba(255,255,255,0.05);color:var(--muted);display:flex;align-items:center;gap:5px;transition:all 0.2s}
-    .mode-btn.active{background:linear-gradient(135deg,var(--purple),var(--purple-light));color:#fff;border-color:transparent}
     #scroll-wrap{flex:1;overflow-y:scroll;overflow-x:hidden;-webkit-overflow-scrolling:touch}
     #messages{padding:16px;display:flex;flex-direction:column;gap:14px;min-height:100%;justify-content:flex-end}
     .msg{display:flex;animation:fadeUp 0.25s ease}
@@ -86,7 +79,7 @@
       <span class="brand-icon">✨</span>
       <div class="brand-text">
         <h1 id="model-name">Astro 1.2</h1>
-        <small id="model-sub">powered by Ano</small>
+        <small id="model-sub">powered by Ano · LLaMA</small>
       </div>
     </div>
     <div class="model-switch">
@@ -101,11 +94,6 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
     </div>
-  </div>
-
-  <div class="mode-bar" id="mode-bar">
-    <button class="mode-btn" id="btn-think" onclick="toggleMode('think')">🧠 Berpikir</button>
-    <button class="mode-btn" id="btn-research" onclick="toggleMode('research')">🔍 Deep Research</button>
   </div>
 
   <div id="scroll-wrap">
@@ -141,19 +129,17 @@
 <script>
 var GROQ_KEY = "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";
 var GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-
 var SYSTEM_12 = "Kamu adalah Ano, asisten AI yang ramah dan helpful. Jawab dalam bahasa yang sama dengan pengguna.";
-var SYSTEM_20 = "Kamu adalah Ano 2.0, asisten AI canggih yang thoughtful dan mendalam. Jawab dengan terstruktur, gunakan contoh konkret, berpikir step-by-step untuk masalah rumit. Jawab dalam bahasa yang sama dengan pengguna.";
+var SYSTEM_20 = "Kamu adalah Ano 2.0, asisten AI canggih yang thoughtful dan mendalam. Jawab dengan terstruktur, gunakan contoh konkret, berpikir step-by-step. Jawab dalam bahasa yang sama dengan pengguna.";
 
 var currentModel = '12';
-var currentMode = 'normal';
 var history = [];
 var loading = false;
 var pendingImage = null;
 var allChats = [];
 var currentChatId = Date.now();
 
-try { allChats = JSON.parse(localStorage.getItem('astro_chats') || '[]'); } catch(e) { allChats = []; }
+try { allChats = JSON.parse(localStorage.getItem('astro_chats') || '[]'); } catch(e) {}
 
 var scrollWrap = document.getElementById('scroll-wrap');
 var messagesEl = document.getElementById('messages');
@@ -174,24 +160,6 @@ function switchModel(m) {
   document.getElementById('btn-20').classList.toggle('active', m==='20');
   document.getElementById('model-name').textContent = m==='12' ? 'Astro 1.2' : 'Astro 2.0';
   document.getElementById('model-sub').textContent = m==='12' ? 'powered by Ano · LLaMA' : 'powered by Ano · LLaMA Pro';
-  document.getElementById('mode-bar').style.display = m==='20' ? 'flex' : 'none';
-  if (m==='12') {
-    currentMode = 'normal';
-    document.getElementById('btn-think').classList.remove('active');
-    document.getElementById('btn-research').classList.remove('active');
-  }
-}
-
-function toggleMode(mode) {
-  if (currentMode === mode) {
-    currentMode = 'normal';
-    document.getElementById('btn-think').classList.remove('active');
-    document.getElementById('btn-research').classList.remove('active');
-  } else {
-    currentMode = mode;
-    document.getElementById('btn-think').classList.toggle('active', mode==='think');
-    document.getElementById('btn-research').classList.toggle('active', mode==='research');
-  }
 }
 
 function newChat() {
@@ -199,11 +167,11 @@ function newChat() {
     var firstMsg = null;
     for (var i=0; i<history.length; i++) { if (history[i].role==='user') { firstMsg=history[i]; break; } }
     var title = firstMsg ? firstMsg.content.substring(0,40) : 'Chat baru';
-    var existing = -1;
-    for (var j=0; j<allChats.length; j++) { if (allChats[j].id===currentChatId) { existing=j; break; } }
-    var chatData = {id:currentChatId, title:title, model:currentModel, history:history, time:Date.now()};
-    if (existing >= 0) allChats[existing] = chatData;
-    else allChats.unshift(chatData);
+    var found = false;
+    for (var j=0; j<allChats.length; j++) {
+      if (allChats[j].id===currentChatId) { allChats[j]={id:currentChatId,title:title,model:currentModel,history:history,time:Date.now()}; found=true; break; }
+    }
+    if (!found) allChats.unshift({id:currentChatId,title:title,model:currentModel,history:history,time:Date.now()});
     try { localStorage.setItem('astro_chats', JSON.stringify(allChats.slice(0,30))); } catch(e) {}
   }
   history = [];
@@ -231,14 +199,11 @@ function loadChat(id) {
 
 function renderHistory() {
   var list = document.getElementById('history-list');
-  if (allChats.length === 0) {
-    list.innerHTML = '<div class="history-empty">Belum ada riwayat chat</div>';
-    return;
-  }
+  if (allChats.length === 0) { list.innerHTML = '<div class="history-empty">Belum ada riwayat chat</div>'; return; }
   var html = '';
   for (var i=0; i<allChats.length; i++) {
     var c = allChats[i];
-    html += '<div class="history-item" onclick="loadChat(' + c.id + ')">' + esc(c.title) + '<div class="hist-model">Astro ' + (c.model==='12'?'1.2':'2.0') + ' · ' + new Date(c.time).toLocaleDateString('id') + '</div></div>';
+    html += '<div class="history-item" onclick="loadChat('+c.id+')">'+esc(c.title)+'<div class="hist-model">Astro '+(c.model==='12'?'1.2':'2.0')+' · '+new Date(c.time).toLocaleDateString('id')+'</div></div>';
   }
   list.innerHTML = html;
 }
@@ -254,20 +219,15 @@ function addMsg(role, content, isThinking, imageBase64) {
   var div = document.createElement('div');
   div.className = 'msg ' + (role==='user'?'user':'bot');
   if (isThinking) div.id = 'thinking-msg';
-
-  var avatarIcon = currentModel === '20' ? '✦' : '✨';
-
+  var icon = currentModel==='20' ? '✦' : '✨';
   if (role === 'bot') {
-    var inner = '';
-    if (isThinking) {
-      inner = '<div class="thinking"><div class="stars-container"><span class="star">✦</span><span class="star">✦</span><span class="star">✦</span></div><span class="thinking-text">sedang berpikir...</span></div>';
-    } else {
-      inner = esc(content);
-    }
-    div.innerHTML = '<div class="avatar">' + avatarIcon + '</div><div class="bubble bot">' + inner + '</div>';
+    var inner = isThinking
+      ? '<div class="thinking"><div class="stars-container"><span class="star">✦</span><span class="star">✦</span><span class="star">✦</span></div><span class="thinking-text">sedang berpikir...</span></div>'
+      : esc(content);
+    div.innerHTML = '<div class="avatar">'+icon+'</div><div class="bubble bot">'+inner+'</div>';
   } else {
-    var imgHtml = imageBase64 ? '<img src="' + imageBase64 + '" style="max-width:100%;border-radius:10px;margin-bottom:6px;display:block" alt="foto"/>' : '';
-    div.innerHTML = '<div class="bubble user">' + imgHtml + esc(content) + '</div>';
+    var imgHtml = imageBase64 ? '<img src="'+imageBase64+'" style="max-width:100%;border-radius:10px;margin-bottom:6px;display:block" alt=""/>' : '';
+    div.innerHTML = '<div class="bubble user">'+imgHtml+esc(content)+'</div>';
   }
   messagesEl.appendChild(div);
   scrollBottom();
@@ -298,24 +258,23 @@ textarea.addEventListener('input', function() {
   textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
 });
 textarea.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 
-async function typeWriter(el, text, speed) {
-  speed = speed || 10;
+async function typeWriter(el, text) {
   el.innerHTML = '';
   var cursor = document.createElement('span');
   cursor.className = 'cursor';
   el.appendChild(cursor);
-  for (var i = 0; i < text.length; i++) {
-    if (text[i] === '\n') {
+  for (var i=0; i<text.length; i++) {
+    if (text[i]==='\n') {
       el.insertBefore(document.createElement('br'), cursor);
     } else {
-      var span = document.createElement('span');
-      span.textContent = text[i];
-      el.insertBefore(span, cursor);
+      var s = document.createElement('span');
+      s.textContent = text[i];
+      el.insertBefore(s, cursor);
     }
-    await new Promise(function(r) { setTimeout(r, speed); });
+    await new Promise(function(r){ setTimeout(r, 10); });
   }
   cursor.remove();
 }
@@ -332,34 +291,38 @@ async function sendMessage() {
   removeImage();
 
   addMsg('user', text || '📷 Foto', false, imgData ? imgData.base64 : null);
-  addMsg('bot', '', true);
-  history.push({role:'user', content: text || 'Jelaskan gambar ini', image: imgData ? imgData.base64 : null});
+  var thinkDiv = addMsg('bot', '', true);
+  history.push({role:'user', content: text || 'Jelaskan gambar ini'});
 
   try {
-    var reply = '';
-    if (currentModel === '12') {
-      reply = await callGroq(text || 'Jelaskan gambar ini', SYSTEM_12, 1000);
-    } else {
-      reply = await callAstro20(text || 'Jelaskan gambar ini');
+    var sys = currentModel==='20' ? SYSTEM_20 : SYSTEM_12;
+    var msgs = [{role:'system', content: sys}];
+    for (var i=0; i<history.length-1; i++) {
+      msgs.push({role: history[i].role==='assistant'?'assistant':'user', content: history[i].content || ' '});
     }
+    msgs.push({role:'user', content: text || 'Halo'});
+
+    var res = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+GROQ_KEY},
+      body: JSON.stringify({model:'llama-3.3-70b-versatile', max_tokens:2048, messages:msgs})
+    });
+
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    var data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    var reply = data.choices[0].message.content;
+
     history.push({role:'assistant', content: reply});
-    var t = document.getElementById('thinking-msg');
-    if (t) {
-      t.removeAttribute('id');
-      var bubble = t.querySelector('.bubble');
-      bubble.className = 'bubble bot';
-      bubble.innerHTML = '';
-      await typeWriter(bubble, reply, 10);
-    }
+
+    var bubble = thinkDiv.querySelector('.bubble');
+    bubble.innerHTML = '';
+    await typeWriter(bubble, reply);
+
   } catch(err) {
-    var t2 = document.getElementById('thinking-msg');
-    if (t2) {
-      t2.removeAttribute('id');
-      var b = t2.querySelector('.bubble');
-      b.className = 'bubble bot';
-      b.innerHTML = '⚠️ Error: ' + esc(String(err.message || err));
-    }
-    if (history.length > 0 && history[history.length-1].role === 'user') history.pop();
+    var bubble2 = thinkDiv.querySelector('.bubble');
+    bubble2.innerHTML = '⚠️ Error: ' + esc(String(err));
+    history.pop();
   } finally {
     loading = false;
     sendBtn.disabled = false;
@@ -367,50 +330,9 @@ async function sendMessage() {
   }
 }
 
-async function callGroq(text, sysPrompt, maxTok) {
-  var msgs = [{role:'system', content: sysPrompt}];
-  for (var i=0; i<history.length-1; i++) {
-    var h = history[i];
-    msgs.push({role: h.role==='assistant'?'assistant':'user', content: h.content || ' '});
-  }
-  msgs.push({role:'user', content: text});
-
-  var res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json','Authorization':'Bearer ' + GROQ_KEY},
-    body: JSON.stringify({model:'llama-3.3-70b-versatile', max_tokens: maxTok || 1000, messages: msgs})
-  });
-  
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  var data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  var reply = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-  if (!reply) throw new Error('Respon kosong dari API');
-  return reply;
-}
-
-async function callAstro20(text) {
-  var sysPrompt = SYSTEM_20;
-  var maxTok = 2048;
-
-  if (currentMode === 'think') {
-    sysPrompt = SYSTEM_20 + '\n\nSebelum menjawab, tulis proses berpikirmu dengan format:\n💭 Proses berpikir:\n[analisis mendalam]\n\n---\n\n[Jawaban final]';
-    maxTok = 4000;
-  } else if (currentMode === 'research') {
-    sysPrompt = SYSTEM_20 + '\n\nGunakan format Deep Research:\n📋 Ringkasan\n🔍 Analisis Mendalam\n📊 Data & Fakta\n⚖️ Pro & Kontra\n💡 Kesimpulan';
-    maxTok = 6000;
-    text = 'Riset mendalam: ' + text;
-  }
-
-  return await callGroq(text, sysPrompt, maxTok);
-}
-
-// Init
 addMsg('bot', 'Halo! Aku Ano 👋 Mau tanya apa?\n\nSwitch ke Astro 2.0 untuk jawaban lebih mendalam! ✨');
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
 </body>
 </html>
